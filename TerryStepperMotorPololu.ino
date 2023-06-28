@@ -4,10 +4,10 @@ const int stepPin = 4;
 const int SelectorM0 = 6;
 const int SelectorM1 = 7;
 const int sleep = 8;
-const int istart = 18;
-const int ostart = 10;
-const int irot = 19;
-const int orot = 16;
+const int istart = 18; //pin for button detection for start/pause
+const int irot = 19; //pin for button detection for direction of rotation
+const int inum = 21; //pin for button detection for changing the number in pulse per microsecond
+const int iplace = 20; //pin for button detection for changing the placevalue in pulse per microsecond
 char *rotdisp[] = {"CW rotation","CCW rotation"};
 
 // libraries for OLED
@@ -23,21 +23,23 @@ char *rotdisp[] = {"CW rotation","CCW rotation"};
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 //State Machine
-#define pause 1
-#define go 2
+#define pause 1 //pause state for pausing motor and changing rotation parameters
+#define go 2 //rotating state for motor, cannot change parameters in this state
 int state = 1;
 
 
 // User input
 const int stepsPerRevolution = 200; // defines length of travel in steps per revolution, 200 steps = 1 revolution
-const int speedc = 2000; // defines speed of clockwise rotation, frequency of pulse in microseconds
-const int speedcc = 1000; // defines spped of counter-clockwise rotation, frequency of pulse in microseconds
+int arspeed[] = {2,0,0,0}; // defines speed of rotation, frequency of pulse in microseconds, in array form for display and manipulation
 const int M0 = HIGH; // Controls microstep resolution, see pololu product 2134 for more information
 const int M1 = HIGH; // Controls microstep resolution, see pololu product 2134 for more information
+int rspeed = 2000; //defines speed of rotation, frequency of pulse in microsecond, in int form for driver control
 
 
 //variables
 int rstate = 0;
+int numstate = 2;
+int placestate = 0;
 
   
 void setup() {
@@ -52,12 +54,10 @@ void setup() {
   digitalWrite(SelectorM1, M1);
   pinMode(sleep, OUTPUT);
   digitalWrite(sleep,HIGH);
-  pinMode(ostart, OUTPUT);
-  digitalWrite(ostart, HIGH); 
-  pinMode(istart, INPUT);
-  pinMode(orot, OUTPUT);
-  digitalWrite(orot, HIGH);
-  pinMode(irot, INPUT);
+  pinMode(istart, INPUT_PULLUP);
+  pinMode(irot, INPUT_PULLUP);
+  pinMode(inum, INPUT_PULLUP);
+  pinMode(iplace,INPUT_PULLUP);
 
   // initialize OLED display with address 0x3C for 128x64
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
@@ -65,8 +65,9 @@ void setup() {
     while (true);
   }
   delay(2000);         // wait for initializing
-  display.clearDisplay(); // clear display
-
+  
+  //Display sequence
+  display.clearDisplay();          // clear display
   display.setTextSize(1);          // text size
   display.setTextColor(WHITE);     // text color
   display.setCursor(0, 10);        // position to display
@@ -75,16 +76,18 @@ void setup() {
 
 
   
-  // Display frequency of pulses per microseconds
-      display.clearDisplay(); // clear display
-      display.setTextSize(1);          // text size
-      display.setTextColor(WHITE);     // text color
+  // Display state of motore, frequency of pulses per microseconds, direction of rotation
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
       display.setCursor(0,10);
       display.println("Paused");
-      display.setCursor(0, 20);        // position to display
+      display.setCursor(0, 20);
       display.println("Pulse per microsecond");
-      display.setCursor(0,30);
-      display.print(speedc);     // text to display
+      for (int i = 0; i<4;i++){  //have this for loop to keep '0' as place holders
+      display.setCursor(i*6,30);
+      display.print(arspeed[i]);
+      }
       display.setCursor(0,50);
       display.print(rotdisp[rstate]);
       display.display();               // show on OLED
@@ -94,29 +97,59 @@ void setup() {
 
 void loop() {
     while (state == pause){
-      display.clearDisplay(); // clear display
-      display.setTextSize(1);          // text size
-      display.setTextColor(WHITE);     // text color
+      //display sequence
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
       display.setCursor(0,10);
-      display.println("Paused:::");
-      display.setCursor(0, 20);        // position to display
+      display.println("Paused");
+      display.setCursor(0, 20);
       display.println("Pulse per microsecond");
-      display.setCursor(0,30);
-      display.print(speedc);     // text to display
+      for (int i = 0; i<4;i++){
+      display.setCursor(i*6,30);
+      display.print(arspeed[i]);
+      }
       display.setCursor(0,50);
       display.print(rotdisp[rstate]);
-      display.display();               // show on OLED
+      display.display();
 
-      int startVal = analogRead(istart);
-      Serial.write("startval: ");
-      Serial.println(startVal);
-      int rotVal = analogRead(irot);
-      Serial.write("rotVal: ");
-      Serial.println(rotVal);
-      Serial.write("dir: ");
-      Serial.println(rstate);
 
-      if (rotVal == 1023){
+      //button detection
+      int startVal = digitalRead(istart);
+      int rotVal = digitalRead(irot);
+      int numVal = digitalRead(inum);
+      int placeVal = digitalRead(iplace);
+
+
+      //Changes the pulse per microdecond based on button inputs
+      numstate = arspeed[placestate];
+      if (numVal == 0){
+        if (numstate == 9){
+          numstate = 0;
+          delay(250); //button delays for user comfort
+        }
+        else{
+        numstate = numstate+1;
+        delay(250);
+        }
+      arspeed[placestate] = numstate;
+      rspeed = arspeed[0]*1000 + arspeed[1]*100 + arspeed[2]*10 + arspeed[3]*1; //takes the array and converts it to int
+      }
+
+      if (placeVal == 0){
+        if (placestate == 3){
+          placestate = 0;
+          delay(250);
+        }
+        else{
+          placestate = placestate+1;
+          delay(250);
+        }
+      }
+
+
+      //Changes the rotation direction based on button input
+      if (rotVal == 0){
         if (rstate == 0){
           rstate = 1;
           digitalWrite(dirPin, LOW); //set to counter clockwise
@@ -130,92 +163,60 @@ void loop() {
       }
 
 
-      if (startVal == 1023){
-          display.clearDisplay(); // clear display
-          display.setTextSize(2);          // text size
-          display.setTextColor(WHITE);     // text color
-          display.setCursor(0,10);
+      //Changes state to go when button is activated
+      if (startVal == 0){
+          display.clearDisplay();
+          display.setTextSize(2);
+          display.setTextColor(WHITE);
+          display.setCursor(0,20);
           display.println("Starting");
           display.display();
           digitalWrite(sleep, HIGH);
           Serial.write("Turning On\n");
           state = 2;
-          delay(1000);
+          delay(1000); 
         }
-
-
       
-      delay(50); //refresh rate for pause
+      delay(50); //refresh rate for pause state, kept low to increase responsiveness of buttons
     } //end of case pause
     
     
     
-    
     while (state == go){
-      // Spin motor slowly
+      // Spins motor
       for(int x = 0; x < stepsPerRevolution; x++)
       {
         digitalWrite(stepPin, HIGH);
-        delayMicroseconds(speedc);
+        delayMicroseconds(rspeed);
         digitalWrite(stepPin, LOW);
-        delayMicroseconds(speedc);
+        delayMicroseconds(rspeed);
       }
 
-      // Display frequency of pulses per microseconds
-      display.clearDisplay(); // clear display
-      display.setTextSize(1);          // text size
-      display.setTextColor(WHITE);     // text color
+
+      // Display sequence
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
       display.setCursor(0,10);
       display.println("rotating");
-      display.setCursor(0, 20);        // position to display
+      display.setCursor(0, 20);
       display.println("Pulse per microsecond");
-      display.setCursor(0,30);
-      display.print(speedc);     // text to display
+      for (int i = 0; i<4;i++){
+      display.setCursor(i*6,30);
+      display.print(arspeed[i]);
+      }
       display.setCursor(0,50);
       display.print(rotdisp[rstate]);
-      display.display();               // show on OLED
+      display.display();
+    
 
-    
-    
-    
-      delay(1000); // Wait a second
-  
-      // Spin motor quickly
-      for(int x = 0; x < stepsPerRevolution; x++)
-      {
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(speedcc);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(speedcc);
-      }
-
-      // Display frequency of pulses per microseconds
-      display.clearDisplay(); // clear display
-      display.setTextSize(1);          // text size
-      display.setTextColor(WHITE);     // text color
-      display.setCursor(0,10);
-      display.println("rotating");
-      display.setCursor(0, 20);        // position to display
-      display.println("Pulse per microsecond: ");
-      display.setCursor(0,30);
-      display.print(speedcc);     // text to display
-      display.setCursor(0,50);
-      display.print(rotdisp[rstate]);       
-      display.display();               // show on OLED
- 
-    
-      delay(1000); // Wait a second
-
+      //Changes state to pause when button is activated
       int startVal = digitalRead(istart);
-      int sleepVal = digitalRead(sleep);
-      Serial.write("startval: ");
-      Serial.println(startVal);
-      
-      if (startVal == 1){
-          display.clearDisplay(); // clear display
-          display.setTextSize(3);          // text size
-          display.setTextColor(WHITE);     // text color
-          display.setCursor(0,10);
+      if (startVal == 0){
+          display.clearDisplay();
+          display.setTextSize(2);
+          display.setTextColor(WHITE);
+          display.setCursor(0,20);
           display.println("pausing");
           display.display();
           digitalWrite(sleep, LOW);
@@ -223,8 +224,8 @@ void loop() {
           state = 1;
           delay(1000);
         }
+      delay(1000); // Refresh rate for go state, also controls motor stop duration, change to 0 for continuous rotation
     } //end of case go
 
-  
-  
+ 
 }
