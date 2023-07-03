@@ -1,14 +1,14 @@
 // Define pin connections & motor's steps per revolution
-const int dirPin = 5;
-const int stepPin = 4;
-const int SelectorM0 = 6;
-const int SelectorM1 = 7;
-const int sleep = 8;
+const int dirPin = 5; //dirPin to driver, see pololu product 2134 for more information 
+const int stepPin = 4; //stepPin to driver, see pololu product 2134 for more information
+const int SelectorM0 = 6; //M0 pin to driver, see pololu product 2134 for more information
+const int SelectorM1 = 7; //M1 pin to driver, see pololu product 2134 for more information
+const int sleep = 8; //sleep pin to driver, see pololu product 2134 for more information
 const int istart = 18; //pin for button detection for start/pause
 const int irot = 19; //pin for button detection for direction of rotation
 const int inum = 21; //pin for button detection for changing the number in pulse per microsecond
 const int iplace = 20; //pin for button detection for changing the placevalue in pulse per microsecond
-char *rotdisp[] = {"CW rotation","CCW rotation"};
+const char *rotdisp[] = {"CW rotation","CCW rotation"}; //array to display direction of rotation
 
 // libraries for OLED
 #include <Wire.h>
@@ -28,7 +28,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 int state = 1;
 
 
-// User input
+// variables to control driver
 const int stepsPerRevolution = 200; // defines length of travel in steps per revolution, 200 steps = 1 revolution
 int arspeed[] = {2,0,0,0}; // defines speed of rotation, frequency of pulse in microseconds, in array form for display and manipulation
 const int M0 = HIGH; // Controls microstep resolution, see pololu product 2134 for more information
@@ -36,10 +36,10 @@ const int M1 = HIGH; // Controls microstep resolution, see pololu product 2134 f
 int rspeed = 2000; //defines speed of rotation, frequency of pulse in microsecond, in int form for driver control
 
 
-//variables
-int rstate = 0;
-int numstate = 2;
-int placestate = 0;
+//variables for code logic
+int rstate = 0; //value to index the array which displays rotation direction(rotdisp)
+int numstate = 2; //value of number being edited
+int placestate = 0; //placevalue of number being edited (where 0 is thousands place, 3 is ones place), also value to index array of speed (arspeed)
 
   
 void setup() {
@@ -85,8 +85,8 @@ void setup() {
       display.setCursor(0, 20);
       display.println("Pulse per microsecond");
       for (int i = 0; i<4;i++){  //have this for loop to keep '0' as place holders
-      display.setCursor(i*6,30);
-      display.print(arspeed[i]);
+        display.setCursor(i*6,30);
+        display.print(arspeed[i]);
       }
       display.setCursor(0,50);
       display.print(rotdisp[rstate]);
@@ -98,20 +98,22 @@ void setup() {
 void loop() {
     while (state == pause){
       //display sequence
-      display.clearDisplay();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,10);
-      display.println("Paused");
-      display.setCursor(0, 20);
-      display.println("Pulse per microsecond");
-      for (int i = 0; i<4;i++){
-      display.setCursor(i*6,30);
-      display.print(arspeed[i]);
-      }
-      display.setCursor(0,50);
-      display.print(rotdisp[rstate]);
-      display.display();
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+        display.setCursor(0,10);
+        display.println("Paused");
+        display.setCursor(0, 20);
+        display.println("Pulse per microsecond");
+        for (int i = 0; i<4;i++){
+          display.setCursor(i*6,30);
+          display.print(arspeed[i]);
+        }
+        display.setCursor(0,50);
+        display.print(rotdisp[rstate]);
+        display.setCursor(placestate*6,32);
+        display.print("_");
+        display.display();
 
 
       //button detection
@@ -123,10 +125,10 @@ void loop() {
 
       //Changes the pulse per microdecond based on button inputs
       numstate = arspeed[placestate];
-      if (numVal == 0){
+      if (numVal == 0){ //number changing logic
         if (numstate == 9){
           numstate = 0;
-          delay(250); //button delays for user comfort
+          delay(250); //button delay for user comfort
         }
         else{
         numstate = numstate+1;
@@ -136,7 +138,7 @@ void loop() {
       rspeed = arspeed[0]*1000 + arspeed[1]*100 + arspeed[2]*10 + arspeed[3]*1; //takes the array and converts it to int
       }
 
-      if (placeVal == 0){
+      if (placeVal == 0){ //place value changing logic
         if (placestate == 3){
           placestate = 0;
           delay(250);
@@ -198,7 +200,7 @@ void loop() {
       display.setTextSize(1);
       display.setTextColor(WHITE);
       display.setCursor(0,10);
-      display.println("rotating");
+      display.println("On");
       display.setCursor(0, 20);
       display.println("Pulse per microsecond");
       for (int i = 0; i<4;i++){
