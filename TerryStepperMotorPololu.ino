@@ -31,8 +31,8 @@ int state = 1;
 // variables to control driver
 const int stepsPerRevolution = 200; // defines length of travel in steps per revolution, 200 steps = 1 revolution
 int arspeed[] = {2,0,0,0}; // defines speed of rotation, frequency of pulse in microseconds, in array form for display and manipulation
-const int M0 = HIGH; // Controls microstep resolution, see pololu product 2134 for more information
-const int M1 = HIGH; // Controls microstep resolution, see pololu product 2134 for more information
+const int M0 = LOW; // Controls microstep resolution, see pololu product 2134 for more information
+const int M1 = LOW; // Controls microstep resolution, see pololu product 2134 for more information
 int rspeed = 2000; //defines speed of rotation, frequency of pulse in microsecond, in int form for driver control
 
 
@@ -219,14 +219,14 @@ void loop() {
           display.setTextSize(2);
           display.setTextColor(WHITE);
           display.setCursor(0,20);
-          display.println("pausing");
+          display.println("Pausing");
           display.display();
           digitalWrite(sleep, LOW);
           Serial.write("Turning Off\n");
           state = 1;
           delay(1000);
         }
-      delay(1000); // Refresh rate for go state, also controls motor stop duration, change to 0 for continuous rotation
+      delay(0); // Refresh rate for go state, also controls motor stop duration, change to 0 for continuous rotation
     } //end of case go
 
  
